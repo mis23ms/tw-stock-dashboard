@@ -55,23 +55,24 @@
 
 <script>
   // ✅ 用 jsDelivr 抓 repo 內 docs/*.json（通常不會卡 CORS）
-  const SOURCES = [
-    {
-      name: "股票外資",
-      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-06@main/docs/data.json",
-      page: "https://mis23ms.github.io/tw-stock-06/",
-    },
-    {
-      name: "期貨",
-      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-futures@main/docs/futures_data.json",
-      page: "https://mis23ms.github.io/tw-stock-futures/",
-    },
-    {
-      name: "選擇權",
-      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-options@main/docs/options_data.json",
-      page: "https://mis23ms.github.io/tw-stock-options/",
-    },
-  ];
+const SOURCES = [
+  {
+    name: "股票外資",
+    url: "https://mis23ms.github.io/tw-stock-06/summary.json",
+    page: "https://mis23ms.github.io/tw-stock-06/",
+  },
+  {
+    name: "期貨",
+    url: "https://mis23ms.github.io/tw-stock-futures/summary.json",
+    page: "https://mis23ms.github.io/tw-stock-futures/",
+  },
+  {
+    name: "選擇權",
+    url: "https://mis23ms.github.io/tw-stock-options/summary.json",
+    page: "https://mis23ms.github.io/tw-stock-options/",
+  },
+];
+
 
   // 你要的「異常門檻」先放前端：之後要調只改這裡
   const THRESHOLD_BIG_NEG = -5000; // 例如：淨部位 < -5000
