@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>投資監控中心</title>
+  <style>
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; }
+    .row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .btn { display:inline-block; padding:10px 12px; border:1px solid #ddd; border-radius:10px; text-decoration:none; color:#111; }
+    .card { border:1px solid #eee; border-radius:14px; padding:14px; margin-top:14px; }
+    .muted { color:#666; font-size: 14px; }
+    ul { margin: 10px 0 0 18px; }
+    .tag { font-size:12px; padding:2px 8px; border:1px solid #ddd; border-radius:999px; margin-left:8px; color:#444; }
+  </style>
+</head>
+<body>
+  <h1>📊 我的投資監控中心</h1>
+
+  <div class="row">
+    <a class="btn" href="https://mis23ms.github.io/tw-stock-06/" target="_blank" rel="noopener">股票外資戰報</a>
+    <a class="btn" href="https://mis23ms.github.io/tw-stock-futures/" target="_blank" rel="noopener">期貨大額交易人</a>
+    <a class="btn" href="https://mis23ms.github.io/tw-stock-options/" target="_blank" rel="noopener">選擇權大額交易人</a>
+  </div>
+
+  <div class="card">
+    <h2>⚠️ 今日重點</h2>
+    <div id="status" class="muted">載入中…</div>
+    <ul id="highlights"></ul>
+  </div>
+
+  <div class="card">
+    <h2>🕒 最新更新</h2>
+    <div id="updatedAt" class="muted">—</div>
+  </div>
+
+<script>
+  // 你三個專案各自要提供固定位置的 summary.json
+  const SOURCES = [
+    { name: "股票外資戰報", url: "https://mis23ms.github.io/tw-stock-06/summary.json", key: "stock06" },
+    { name: "期貨大額交易人", url: "https://mis23ms.github.io/tw-stock-futures/summary.json", key: "futures" },
+    { name: "選擇權大額交易人", url: "https://mis23ms.github.io/tw-stock-options/summary.json", key: "options" },
+  ];
+
+  const $status = document.getElementById("status");
+  const $list = document.getElementById("highlights");
+  const $updatedAt = document.getElementById("updatedAt");
+
+  function li(text, sourceName) {
+    const el = document.createElement("li");
+    el.textContent = text;
+    const tag = document.createElement("span");
+    tag.className = "tag";
+    tag.textContent = sourceName;
+    el.appendChild(tag);
+    return el;
+  }
+
+  async function loadAll() {
+    $status.textContent = "載入中…";
+    $list.innerHTML = "";
+    let latestTs = null;
+    let totalItems = 0;
+
+    const results = await Promise.allSettled(
+      SOURCES.map(s => fetch(s.url, { cache: "no-store" }).then(r => {
+        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
+        return r.json();
+      }).then(json => ({ source: s, json })))
+    );
+
+    for (const r of results) {
+      if (r.status === "fulfilled") {
+        const { source, json } = r.value;
+
+        // 建議 summary.json 格式：{ updatedAt: "2026-01-30 17:20", highlights: ["...","..."] }
+        const items = Array.isArray(json.highlights) ? json.highlights : [];
+        items.forEach(t => { $list.appendChild(li(t, source.name)); });
+        totalItems += items.length;
+
+        if (json.updatedAt) {
+          // 用字串比大小即可（你若用 YYYY-MM-DD HH:mm 格式）
+          latestTs = (latestTs === null || json.updatedAt > latestTs) ? json.updatedAt : latestTs;
+        }
+      } else {
+        // 某個來源掛了也不影響整體
+        $list.appendChild(li(`（抓不到 ${r.reason?.message || "資料"}）`, "總覽"));
+      }
+    }
+
+    $updatedAt.textContent = latestTs ? latestTs : "—";
+    $status.textContent = totalItems ? `共 ${totalItems} 則重點` : "目前沒有重點（或 summary.json 尚未建立）";
+  }
+
+  loadAll();
+</script>
+</body>
+</html>
