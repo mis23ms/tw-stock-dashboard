@@ -5,13 +5,19 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>投資監控中心</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; }
-    .row { display: flex; gap: 12px; flex-wrap: wrap; }
-    .btn { display:inline-block; padding:10px 12px; border:1px solid #ddd; border-radius:10px; text-decoration:none; color:#111; }
-    .card { border:1px solid #eee; border-radius:14px; padding:14px; margin-top:14px; }
-    .muted { color:#666; font-size: 14px; }
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; color:#111; }
+    h1 { margin: 0 0 12px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; margin: 10px 0 18px; }
+    .btn { display:inline-block; padding:10px 12px; border:1px solid #ddd; border-radius:12px; text-decoration:none; color:#111; }
+    .card { border:1px solid #eee; border-radius:16px; padding:14px 16px; margin-top:14px; }
+    .muted { color:#666; font-size:14px; }
     ul { margin: 10px 0 0 18px; }
+    li { margin: 6px 0; }
     .tag { font-size:12px; padding:2px 8px; border:1px solid #ddd; border-radius:999px; margin-left:8px; color:#444; }
+    .pill { font-size:12px; padding:2px 8px; border:1px solid #ddd; border-radius:999px; color:#444; }
+    .grid { display:grid; grid-template-columns: 1fr; gap: 10px; }
+    @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
+    code { background:#f7f7f7; padding: 2px 6px; border-radius: 8px; }
   </style>
 </head>
 <body>
@@ -23,73 +29,175 @@
     <a class="btn" href="https://mis23ms.github.io/tw-stock-options/" target="_blank" rel="noopener">選擇權大額交易人</a>
   </div>
 
-  <div class="card">
-    <h2>⚠️ 今日重點</h2>
-    <div id="status" class="muted">載入中…</div>
-    <ul id="highlights"></ul>
-  </div>
+  <div class="grid">
+    <div class="card">
+      <div class="row" style="align-items:center; margin:0;">
+        <h2 style="margin:0;">⚠️ 今日重點</h2>
+        <span id="count" class="pill">0</span>
+      </div>
+      <div id="status" class="muted" style="margin-top:6px;">載入中…</div>
+      <ul id="highlights"></ul>
+    </div>
 
-  <div class="card">
-    <h2>🕒 最新更新</h2>
-    <div id="updatedAt" class="muted">—</div>
+    <div class="card">
+      <h2 style="margin:0 0 8px;">🕒 最新更新</h2>
+      <div id="updatedAt" class="muted">—</div>
+      <div class="muted" style="margin-top:10px;">
+        資料來源（JSON）：
+        <div style="margin-top:6px; line-height:1.7;">
+          <div>• <code id="u1"></code></div>
+          <div>• <code id="u2"></code></div>
+          <div>• <code id="u3"></code></div>
+        </div>
+      </div>
+    </div>
   </div>
 
 <script>
-  // 你三個專案各自要提供固定位置的 summary.json
+  // ✅ 用 jsDelivr 抓 repo 內 docs/*.json（通常不會卡 CORS）
   const SOURCES = [
-    { name: "股票外資戰報", url: "https://mis23ms.github.io/tw-stock-06/summary.json", key: "stock06" },
-    { name: "期貨大額交易人", url: "https://mis23ms.github.io/tw-stock-futures/summary.json", key: "futures" },
-    { name: "選擇權大額交易人", url: "https://mis23ms.github.io/tw-stock-options/summary.json", key: "options" },
+    {
+      name: "股票外資",
+      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-06@main/docs/data.json",
+      page: "https://mis23ms.github.io/tw-stock-06/",
+    },
+    {
+      name: "期貨",
+      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-futures@main/docs/futures_data.json",
+      page: "https://mis23ms.github.io/tw-stock-futures/",
+    },
+    {
+      name: "選擇權",
+      url: "https://cdn.jsdelivr.net/gh/mis23ms/tw-stock-options@main/docs/options_data.json",
+      page: "https://mis23ms.github.io/tw-stock-options/",
+    },
   ];
+
+  // 你要的「異常門檻」先放前端：之後要調只改這裡
+  const THRESHOLD_BIG_NEG = -5000; // 例如：淨部位 < -5000
 
   const $status = document.getElementById("status");
   const $list = document.getElementById("highlights");
   const $updatedAt = document.getElementById("updatedAt");
+  const $count = document.getElementById("count");
 
-  function li(text, sourceName) {
-    const el = document.createElement("li");
-    el.textContent = text;
+  document.getElementById("u1").textContent = SOURCES[0].url;
+  document.getElementById("u2").textContent = SOURCES[1].url;
+  document.getElementById("u3").textContent = SOURCES[2].url;
+
+  function addItem(text, sourceName, link) {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = link;
+    a.target = "_blank";
+    a.rel = "noopener";
+    a.textContent = text;
+    a.style.color = "#111";
+    a.style.textDecoration = "none";
+    a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
+    a.addEventListener("mouseout", () => a.style.textDecoration = "none");
+
     const tag = document.createElement("span");
     tag.className = "tag";
     tag.textContent = sourceName;
-    el.appendChild(tag);
-    return el;
+
+    li.appendChild(a);
+    li.appendChild(tag);
+    $list.appendChild(li);
+  }
+
+  // 嘗試從各種可能欄位抓「更新時間」
+  function pickUpdatedAt(j) {
+    return j?.updatedAt || j?.update_time || j?.updateTime || j?.generated_at || j?.generatedAt || null;
+  }
+
+  // 嘗試做「今日重點」：不硬綁 schema，用“盡可能抓得到的線索”
+  function extractHighlights(source, j) {
+    const out = [];
+
+    // 1) 若後端已有 errors / error
+    const err = j?.error || j?.errors;
+    if (err) out.push(`資料來源回報錯誤：${String(err).slice(0, 120)}`);
+
+    // 2) 通用：若有 items array，找出最“負”的數值（可能是淨部位）
+    const items = Array.isArray(j?.items) ? j.items : null;
+    if (items && items.length) {
+      // 找出每個 item 裡最像「淨」的欄位：key 包含 net / 淨
+      const candidates = [];
+      for (const it of items) {
+        if (!it || typeof it !== "object") continue;
+
+        const name = it.name || it.ticker || it.symbol || it.code || "標的";
+        for (const [k, v] of Object.entries(it)) {
+          if (typeof v !== "number") continue;
+          const kk = String(k).toLowerCase();
+          if (kk.includes("net") || kk.includes("淨")) {
+            candidates.push({ name, k, v });
+          }
+        }
+      }
+
+      // 若抓得到候選，挑出最負的幾個當重點
+      candidates.sort((a, b) => a.v - b.v);
+      const worst = candidates.filter(x => x.v <= THRESHOLD_BIG_NEG).slice(0, 5);
+
+      for (const x of worst) {
+        out.push(`${x.name}：${x.k} ${x.v}`);
+      }
+
+      // 候選太少時，至少秀「今天有幾筆 items」
+      if (!out.length) {
+        out.push(`今日資料筆數：${items.length}`);
+      }
+    }
+
+    // 3) stock06 若不是 items 結構，也至少顯示「有沒有關鍵標的」
+    //    （這段只做非常保守的提示，不假設欄位名稱）
+    if (!out.length && j && typeof j === "object") {
+      const keys = Object.keys(j);
+      out.push(`已載入（欄位：${keys.slice(0, 8).join(", ")}${keys.length > 8 ? "…" : ""}）`);
+    }
+
+    // 控制每個來源最多 4 條，避免太吵
+    return out.slice(0, 4);
   }
 
   async function loadAll() {
     $status.textContent = "載入中…";
     $list.innerHTML = "";
-    let latestTs = null;
-    let totalItems = 0;
+    $count.textContent = "0";
+
+    let latest = null;
+    let total = 0;
 
     const results = await Promise.allSettled(
-      SOURCES.map(s => fetch(s.url, { cache: "no-store" }).then(r => {
-        if (!r.ok) throw new Error(`${r.status} ${r.statusText}`);
-        return r.json();
-      }).then(json => ({ source: s, json })))
+      SOURCES.map(async s => {
+        // cache bust：避免 CDN 快取讓你以為沒更新
+        const url = s.url + (s.url.includes("?") ? "&" : "?") + "t=" + Date.now();
+        const r = await fetch(url, { cache: "no-store" });
+        if (!r.ok) throw new Error(`${s.name} 抓取失敗：${r.status} ${r.statusText}`);
+        const j = await r.json();
+        return { source: s, json: j };
+      })
     );
 
     for (const r of results) {
       if (r.status === "fulfilled") {
         const { source, json } = r.value;
+        const ts = pickUpdatedAt(json);
+        if (ts && (latest === null || String(ts) > String(latest))) latest = ts;
 
-        // 建議 summary.json 格式：{ updatedAt: "2026-01-30 17:20", highlights: ["...","..."] }
-        const items = Array.isArray(json.highlights) ? json.highlights : [];
-        items.forEach(t => { $list.appendChild(li(t, source.name)); });
-        totalItems += items.length;
-
-        if (json.updatedAt) {
-          // 用字串比大小即可（你若用 YYYY-MM-DD HH:mm 格式）
-          latestTs = (latestTs === null || json.updatedAt > latestTs) ? json.updatedAt : latestTs;
-        }
+        const hs = extractHighlights(source, json);
+        hs.forEach(t => { addItem(t, source.name, source.page); total++; });
       } else {
-        // 某個來源掛了也不影響整體
-        $list.appendChild(li(`（抓不到 ${r.reason?.message || "資料"}）`, "總覽"));
+        addItem(r.reason?.message || "抓取失敗", "總覽", "#");
+        total++;
       }
     }
 
-    $updatedAt.textContent = latestTs ? latestTs : "—";
-    $status.textContent = totalItems ? `共 ${totalItems} 則重點` : "目前沒有重點（或 summary.json 尚未建立）";
+    $updatedAt.textContent = latest ? String(latest) : "—";
+    $count.textContent = String(total);
+    $status.textContent = total ? `共 ${total} 則` : "目前沒有重點";
   }
 
   loadAll();
