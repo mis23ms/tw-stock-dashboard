@@ -103,21 +103,21 @@ function addItem(text, sourceName, link) {
   a.href = link;
   a.target = "_blank";
   a.rel = "noopener";
-  a.textContent = text;
   a.style.textDecoration = "none";
+  a.style.color = "#111";
   
-  // ✅ 新增：根據文字內容自動上色
-  if (text.includes("漲") || text.includes("收") && text.includes("+")) {
-    a.className = "up";  // 漲 = 紅色
-  } else if (text.includes("跌") || text.includes("收") && text.includes("-")) {
-    a.className = "down";  // 跌 = 綠色
-  } else if (text.includes("偏多") || text.includes("→ 偏多")) {
-    a.className = "bullish";  // 偏多 = 藍色
-  } else if (text.includes("偏空") || text.includes("→ 偏空")) {
-    a.className = "bearish";  // 偏空 = 紅色
-  } else {
-    a.style.color = "#111";  // 其他 = 黑色
-  }
+  // ✅ 新版本（部分上色）
+  let coloredHTML = text;
+  
+  // 處理漲跌百分比
+  coloredHTML = coloredHTML.replace(/(\+[\d.]+%)/g, '<span class="up">$1</span>');
+  coloredHTML = coloredHTML.replace(/(-[\d.]+%)/g, '<span class="down">$1</span>');
+  
+  // 處理偏多/偏空
+  coloredHTML = coloredHTML.replace(/(偏多)/g, '<span class="bullish">$1</span>');
+  coloredHTML = coloredHTML.replace(/(偏空)/g, '<span class="bearish">$1</span>');
+  
+  a.innerHTML = coloredHTML;
   
   a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
   a.addEventListener("mouseout", () => a.style.textDecoration = "none");
