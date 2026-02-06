@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>投資監控中心</title>
   <style>
-    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; color:#111; }
+    body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; color:#111; background-color: #f8f7f2; }
     h1 { margin: 0 0 12px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; margin: 10px 0 18px; }
     .btn { display:inline-block; padding:10px 12px; border:1px solid #ddd; border-radius:12px; text-decoration:none; color:#111; }
@@ -19,6 +19,12 @@
     @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
     code { background:#f7f7f7; padding: 2px 6px; border-radius: 8px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
+    /* 漲跌顏色 */
+    .up { color: #c72515; font-weight: bold; }    /* 漲 = 紅色 */
+    .down { color: #059a3c; font-weight: bold; }  /* 跌 = 綠色 */
+    /* 期貨選擇權多空顏色 */
+    .bullish { color: #004aad; font-weight: bold; }  /* 偏多 = 藍色 */
+    .bearish { color: #c72515; font-weight: bold; }  /* 偏空 = 紅色 */
   </style>
 </head>
 <body>
@@ -90,27 +96,40 @@
   document.getElementById("u2").textContent = SOURCES[1].url;
   document.getElementById("u3").textContent = SOURCES[2].url;
 
-  function addItem(text, sourceName, link) {
-    const li = document.createElement("li");
+function addItem(text, sourceName, link) {
+  const li = document.createElement("li");
 
-    const a = document.createElement("a");
-    a.href = link;
-    a.target = "_blank";
-    a.rel = "noopener";
-    a.textContent = text;
-    a.style.color = "#111";
-    a.style.textDecoration = "none";
-    a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
-    a.addEventListener("mouseout", () => a.style.textDecoration = "none");
-
-    const tag = document.createElement("span");
-    tag.className = "tag";
-    tag.textContent = sourceName;
-
-    li.appendChild(a);
-    li.appendChild(tag);
-    $list.appendChild(li);
+  const a = document.createElement("a");
+  a.href = link;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = text;
+  a.style.textDecoration = "none";
+  
+  // ✅ 新增：根據文字內容自動上色
+  if (text.includes("漲") || text.includes("收") && text.includes("+")) {
+    a.className = "up";  // 漲 = 紅色
+  } else if (text.includes("跌") || text.includes("收") && text.includes("-")) {
+    a.className = "down";  // 跌 = 綠色
+  } else if (text.includes("偏多") || text.includes("→ 偏多")) {
+    a.className = "bullish";  // 偏多 = 藍色
+  } else if (text.includes("偏空") || text.includes("→ 偏空")) {
+    a.className = "bearish";  // 偏空 = 紅色
+  } else {
+    a.style.color = "#111";  // 其他 = 黑色
   }
+  
+  a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
+  a.addEventListener("mouseout", () => a.style.textDecoration = "none");
+
+  const tag = document.createElement("span");
+  tag.className = "tag";
+  tag.textContent = sourceName;
+
+  li.appendChild(a);
+  li.appendChild(tag);
+  $list.appendChild(li);
+}
 
   // summary.json 的標準欄位：updatedAt
   function pickUpdatedAt(j) {
