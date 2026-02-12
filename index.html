@@ -141,7 +141,7 @@ function addItem(text, sourceName, link) {
   // ✅ 只做一件事：把 highlights 顯示出來
   function extractHighlights(j) {
     const hs = (j && Array.isArray(j.highlights)) ? j.highlights : [];
-    if (hs.length) return hs.filter(x => typeof x === "string" && x.trim()).slice(0, 12);
+    if (hs.length) return hs.filter(x => typeof x === "string" && x.trim());
 
     const err = j?.error || j?.errors;
     if (err) return [`資料來源回報錯誤：${String(err).slice(0, 120)}`];
