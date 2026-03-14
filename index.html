@@ -207,11 +207,14 @@
       // 取得所有券商名稱（以第一天為準）
       const brokerNames = sorted[0].brokers.map(b => b.name);
 
-      const datasets = brokerNames.map((name, i) => ({
+      // 仟元 → 億元（1億 = 100,000仟元）
+      const toOk = v => v != null ? +(v / 100000).toFixed(3) : null;
+
+      const brokerDatasets = brokerNames.map((name, i) => ({
         label: name,
         data: sorted.map(day => {
           const b = day.brokers.find(x => x.name === name);
-          return b ? parseDiff(b.diff) : null;
+          return toOk(b ? parseDiff(b.diff) : null);
         }),
         borderColor: BROKER_COLORS[i % BROKER_COLORS.length],
         backgroundColor: BROKER_COLORS[i % BROKER_COLORS.length] + "18",
@@ -222,12 +225,28 @@
         spanGaps: true,
       }));
 
+      // Y=0 虛線（隱藏 legend）
+      const zeroLine = {
+        label: "__zero__",
+        data: labels.map(() => 0),
+        borderColor: "#999",
+        borderWidth: 1.5,
+        borderDash: [6, 4],
+        pointRadius: 0,
+        pointHoverRadius: 0,
+        fill: false,
+        tension: 0,
+        spanGaps: true,
+      };
+
+      const datasets = [...brokerDatasets, zeroLine];
+
       loader.style.display = "none";
       canvas.style.display = "block";
 
       const lastDate = fmtDate(sorted[sorted.length - 1].date);
       document.getElementById("zgb-sub").textContent =
-        `最新：${lastDate} ｜ 單位：仟元 ｜ 差額（買 − 賣），正值=淨買，負值=淨賣`;
+        `最新：${lastDate} ｜ 單位：億元 ｜ 差額（買 − 賣），正值=淨買，負值=淨賣`;
 
       new Chart(canvas, {
         type: "line",
@@ -237,14 +256,21 @@
           maintainAspectRatio: false,
           interaction: { mode: "index", intersect: false },
           plugins: {
-            legend: { position: "bottom", labels: { font: { size: 12 }, padding: 12, usePointStyle: true } },
+            legend: {
+              position: "bottom",
+              labels: {
+                font: { size: 12 }, padding: 12, usePointStyle: true,
+                filter: item => item.text !== "__zero__"
+              }
+            },
             tooltip: {
+              filter: item => item.dataset.label !== "__zero__",
               callbacks: {
                 label: ctx => {
                   const v = ctx.parsed.y;
                   if (v == null) return `${ctx.dataset.label}: —`;
                   const s = v >= 0 ? "+" : "";
-                  return `${ctx.dataset.label}: ${s}${v.toLocaleString()} 仟元`;
+                  return `${ctx.dataset.label}: ${s}${v.toFixed(3)}億`;
                 }
               }
             }
@@ -254,15 +280,9 @@
             y: {
               ticks: {
                 font: { size: 11 },
-                callback: v => {
-                  const abs = Math.abs(v);
-                  if (abs >= 1000000) return (v / 1000000).toFixed(1) + "M";
-                  if (abs >= 1000) return (v / 1000).toFixed(0) + "K";
-                  return v;
-                }
+                callback: v => v.toFixed(3) + "億"
               },
               grid: { color: "#eee" },
-              border: { dash: [3, 3] },
             }
           }
         }
@@ -278,4 +298,3 @@
 </script>
 </body>
 </html>
-
