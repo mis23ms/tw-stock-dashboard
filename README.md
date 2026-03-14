@@ -261,5 +261,14 @@ extractHighlights() 是否是直接讀 j.highlights
 
 做「大盤氣氛」：外資台指期淨空單、P/C Ratio、散戶小台多空比等
 
+---
+## 2026-03-14 新增：Dashboard 更新
 
+### tw-stock-dashboard 變更
+- 新增第四個按鈕：「跌幅vs外資買賣超」(prxdecrease-brokers-buysell-compare)
+- 新增「券商分點進出金額（ZGB）6大外資 7天趨勢折線圖」
+  - 資料來源：tw-stock-06/data.json 的 fubon_zgb_history
+  - 6條折線各代表一家外資，Y=0 虛線為基準，單位億元
+  - 互動式：hover 可看當天所有外資數字
+- 原有三個來源（股票外資/期貨/選擇權）不動
 
