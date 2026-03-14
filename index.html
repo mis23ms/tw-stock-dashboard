@@ -4,11 +4,13 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>投資監控中心</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
   <style>
     body { font-family: system-ui, -apple-system, "Noto Sans TC", sans-serif; margin: 24px; color:#111; background-color: #f8f7f2; }
     h1 { margin: 0 0 12px; }
     .row { display:flex; gap:12px; flex-wrap:wrap; margin: 10px 0 18px; }
     .btn { display:inline-block; padding:10px 12px; border:1px solid #ddd; border-radius:12px; text-decoration:none; color:#111; }
+    .btn:hover { background:#eee; }
     .card { border:1px solid #eee; border-radius:16px; padding:14px 16px; margin-top:14px; }
     .muted { color:#666; font-size:14px; }
     ul { margin: 10px 0 0 18px; }
@@ -19,12 +21,16 @@
     @media (min-width: 860px) { .grid { grid-template-columns: 1fr 1fr; } }
     code { background:#f7f7f7; padding: 2px 6px; border-radius: 8px; }
     .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; }
-    /* 漲跌顏色 */
-    .up { color: #c72515; font-weight: bold; }    /* 漲 = 紅色 */
-    .down { color: #059a3c; font-weight: bold; }  /* 跌 = 綠色 */
-    /* 期貨選擇權多空顏色 */
-    .bullish { color: #004aad; font-weight: bold; }  /* 偏多 = 藍色 */
-    .bearish { color: #c72515; font-weight: bold; }  /* 偏空 = 紅色 */
+    .up { color: #c72515; font-weight: bold; }
+    .down { color: #059a3c; font-weight: bold; }
+    .bullish { color: #004aad; font-weight: bold; }
+    .bearish { color: #c72515; font-weight: bold; }
+    /* ZGB Chart */
+    .chart-card { border:1px solid #eee; border-radius:16px; padding:14px 16px; margin-top:14px; }
+    .chart-card h2 { margin: 0 0 4px; font-size:16px; }
+    .chart-card .chart-sub { font-size:12px; color:#666; margin-bottom:12px; }
+    .chart-wrap { position:relative; height:320px; }
+    .chart-loader { display:flex; align-items:center; justify-content:center; height:320px; color:#999; font-size:14px; }
   </style>
 </head>
 <body>
@@ -34,6 +40,7 @@
     <a class="btn" href="https://mis23ms.github.io/tw-stock-06/" target="_blank" rel="noopener">股票外資戰報</a>
     <a class="btn" href="https://mis23ms.github.io/tw-stock-futures/" target="_blank" rel="noopener">期貨大額交易人</a>
     <a class="btn" href="https://mis23ms.github.io/tw-stock-options/" target="_blank" rel="noopener">選擇權大額交易人</a>
+    <a class="btn" href="https://mis23ms.github.io/prxdecrease-brokers-buysell-compare/" target="_blank" rel="noopener">跌幅vs外資買賣超</a>
   </div>
 
   <div class="grid">
@@ -49,12 +56,10 @@
     <div class="card">
       <h2 style="margin:0 0 8px;">🕒 最新更新</h2>
       <div id="updatedAt" class="muted">—</div>
-
       <div class="muted" style="margin-top:10px;">
         各來源更新時間：
         <div id="perSource" class="mono" style="margin-top:6px; line-height:1.7;"></div>
       </div>
-
       <div class="muted" style="margin-top:10px;">
         資料來源（JSON）：
         <div style="margin-top:6px; line-height:1.7;">
@@ -66,24 +71,32 @@
     </div>
   </div>
 
+  <!-- ZGB 趨勢圖 -->
+  <div class="chart-card">
+    <h2>📈 券商分點進出金額（ZGB）— 6大外資 7天趨勢</h2>
+    <div class="chart-sub" id="zgb-sub">載入中… 單位：仟元 · 差額（買-賣）</div>
+    <div class="chart-wrap">
+      <canvas id="zgbChart" style="display:none;"></canvas>
+      <div class="chart-loader" id="zgb-loader">⏳ 載入資料中…</div>
+    </div>
+  </div>
+
 <script>
-  // 只抓你三個 summary.json（重點都在 highlights 裡）
   const SOURCES = [
-    {
-      name: "股票外資",
-      url: "https://mis23ms.github.io/tw-stock-06/summary.json",
-      page: "https://mis23ms.github.io/tw-stock-06/",
-    },
-    {
-      name: "期貨",
-      url: "https://mis23ms.github.io/tw-stock-futures/summary.json",
-      page: "https://mis23ms.github.io/tw-stock-futures/",
-    },
-    {
-      name: "選擇權",
-      url: "https://mis23ms.github.io/tw-stock-options/summary.json",
-      page: "https://mis23ms.github.io/tw-stock-options/",
-    },
+    { name: "股票外資", url: "https://mis23ms.github.io/tw-stock-06/summary.json", page: "https://mis23ms.github.io/tw-stock-06/" },
+    { name: "期貨",     url: "https://mis23ms.github.io/tw-stock-futures/summary.json", page: "https://mis23ms.github.io/tw-stock-futures/" },
+    { name: "選擇權",   url: "https://mis23ms.github.io/tw-stock-options/summary.json", page: "https://mis23ms.github.io/tw-stock-options/" },
+  ];
+
+  const ZGB_DATA_URL = "https://mis23ms.github.io/tw-stock-06/data.json";
+
+  const BROKER_COLORS = [
+    "#2563eb", // 摩根大通 - 藍
+    "#dc2626", // 台灣摩根士丹利 - 紅
+    "#16a34a", // 新加坡商瑞銀 - 綠
+    "#d97706", // 美林 - 橙
+    "#7c3aed", // 花旗環球 - 紫
+    "#0891b2", // 美商高盛 - 青
   ];
 
   const $status = document.getElementById("status");
@@ -96,121 +109,172 @@
   document.getElementById("u2").textContent = SOURCES[1].url;
   document.getElementById("u3").textContent = SOURCES[2].url;
 
-function addItem(text, sourceName, link) {
-  const li = document.createElement("li");
-
-  const a = document.createElement("a");
-  a.href = link;
-  a.target = "_blank";
-  a.rel = "noopener";
-  a.style.textDecoration = "none";
-  a.style.color = "#111";
-  
-  // ✅ 新版本（部分上色）
-  let coloredHTML = text;
-  
-  // 處理漲跌百分比
-  coloredHTML = coloredHTML.replace(/(\+[\d.]+%)/g, '<span class="up">$1</span>');
-  coloredHTML = coloredHTML.replace(/(-[\d.]+%)/g, '<span class="down">$1</span>');
-  
-  // 處理偏多/偏空
-  coloredHTML = coloredHTML.replace(/(偏多)/g, '<span class="bullish">$1</span>');
-  coloredHTML = coloredHTML.replace(/(偏空)/g, '<span class="bearish">$1</span>');
-  
-  a.innerHTML = coloredHTML;
-  
-  a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
-  a.addEventListener("mouseout", () => a.style.textDecoration = "none");
-
-  const tag = document.createElement("span");
-  tag.className = "tag";
-  tag.textContent = sourceName;
-
-  li.appendChild(a);
-  li.appendChild(tag);
-  $list.appendChild(li);
-}
-
-  // summary.json 的標準欄位：updatedAt
-  function pickUpdatedAt(j) {
-    return (j && (j.updatedAt || j.update_time || j.updateTime || j.generated_at || j.generatedAt)) ? String(
-      j.updatedAt || j.update_time || j.updateTime || j.generated_at || j.generatedAt
-    ) : "";
+  function addItem(text, sourceName, link) {
+    const li = document.createElement("li");
+    const a = document.createElement("a");
+    a.href = link; a.target = "_blank"; a.rel = "noopener";
+    a.style.textDecoration = "none"; a.style.color = "#111";
+    let html = text;
+    html = html.replace(/(\+[\d.]+%)/g, '<span class="up">$1</span>');
+    html = html.replace(/(-[\d.]+%)/g, '<span class="down">$1</span>');
+    html = html.replace(/(偏多)/g, '<span class="bullish">$1</span>');
+    html = html.replace(/(偏空)/g, '<span class="bearish">$1</span>');
+    a.innerHTML = html;
+    a.addEventListener("mouseover", () => a.style.textDecoration = "underline");
+    a.addEventListener("mouseout",  () => a.style.textDecoration = "none");
+    const tag = document.createElement("span");
+    tag.className = "tag"; tag.textContent = sourceName;
+    li.appendChild(a); li.appendChild(tag);
+    $list.appendChild(li);
   }
 
-  // ✅ 只做一件事：把 highlights 顯示出來
+  function pickUpdatedAt(j) {
+    return (j && (j.updatedAt || j.update_time || j.updateTime || j.generated_at || j.generatedAt))
+      ? String(j.updatedAt || j.update_time || j.updateTime || j.generated_at || j.generatedAt) : "";
+  }
+
   function extractHighlights(j) {
     const hs = (j && Array.isArray(j.highlights)) ? j.highlights : [];
     if (hs.length) return hs.filter(x => typeof x === "string" && x.trim());
-
     const err = j?.error || j?.errors;
     if (err) return [`資料來源回報錯誤：${String(err).slice(0, 120)}`];
-
-    if (j && typeof j === "object") {
-      const keys = Object.keys(j);
-      return [`(找不到 highlights) 欄位：${keys.join(", ")}`];
-    }
+    if (j && typeof j === "object") return [`(找不到 highlights) 欄位：${Object.keys(j).join(", ")}`];
     return ["資料格式不明"];
   }
 
   function setPerSourceLine(lines) {
     $perSource.innerHTML = "";
-    lines.forEach(t => {
-      const div = document.createElement("div");
-      div.textContent = t;
-      $perSource.appendChild(div);
-    });
+    lines.forEach(t => { const d = document.createElement("div"); d.textContent = t; $perSource.appendChild(d); });
   }
 
   async function loadAll() {
-    $status.textContent = "載入中…";
-    $list.innerHTML = "";
-    $count.textContent = "0";
-    $updatedAt.textContent = "—";
-    setPerSourceLine([]);
-
-    let total = 0;
-    let latestTs = "";
-
+    $status.textContent = "載入中…"; $list.innerHTML = ""; $count.textContent = "0";
+    $updatedAt.textContent = "—"; setPerSourceLine([]);
+    let total = 0, latestTs = "";
     const results = await Promise.allSettled(
       SOURCES.map(async s => {
-        const url = s.url + (s.url.includes("?") ? "&" : "?") + "t=" + Date.now(); // 防快取
+        const url = s.url + (s.url.includes("?") ? "&" : "?") + "t=" + Date.now();
         const r = await fetch(url, { cache: "no-store" });
         if (!r.ok) throw new Error(`${s.name} 抓取失敗：${r.status} ${r.statusText}`);
-        const j = await r.json();
-        return { source: s, json: j };
+        return { source: s, json: await r.json() };
       })
     );
-
     const perSourceLines = [];
-
     for (const r of results) {
       if (r.status === "fulfilled") {
         const { source, json } = r.value;
-
         const ts = pickUpdatedAt(json);
         perSourceLines.push(`${source.name}: ${ts || "NA"}`);
         if (ts && (!latestTs || ts > latestTs)) latestTs = ts;
-
-        const hs = extractHighlights(json);
-        hs.forEach(line => {
-          addItem(line, source.name, source.page);
-          total++;
-        });
+        extractHighlights(json).forEach(line => { addItem(line, source.name, source.page); total++; });
       } else {
         perSourceLines.push(`(錯誤) ${r.reason?.message || "抓取失敗"}`);
-        addItem(r.reason?.message || "抓取失敗", "總覽", "#");
-        total++;
+        addItem(r.reason?.message || "抓取失敗", "總覽", "#"); total++;
       }
     }
-
     setPerSourceLine(perSourceLines);
     $updatedAt.textContent = latestTs || "—";
     $count.textContent = String(total);
     $status.textContent = total ? `共 ${total} 則` : "目前沒有重點";
   }
 
+  // ── ZGB 折線圖 ──────────────────────────────────────────
+  function parseDiff(str) {
+    if (!str || str.trim() === "-") return null;
+    return parseInt(str.replace(/,/g, ""), 10);
+  }
+
+  function fmtDate(d) {
+    // "20260313" → "3/13"
+    return d.slice(4, 6).replace(/^0/, "") + "/" + d.slice(6, 8).replace(/^0/, "");
+  }
+
+  async function loadZGB() {
+    const loader = document.getElementById("zgb-loader");
+    const canvas = document.getElementById("zgbChart");
+    try {
+      const url = ZGB_DATA_URL + "?t=" + Date.now();
+      const r = await fetch(url, { cache: "no-store" });
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      const json = await r.json();
+      const history = json.fubon_zgb_history;
+      if (!history || !history.length) throw new Error("無 fubon_zgb_history 資料");
+
+      // 由舊到新排序
+      const sorted = [...history].sort((a, b) => a.date.localeCompare(b.date));
+      const labels = sorted.map(d => fmtDate(d.date));
+
+      // 取得所有券商名稱（以第一天為準）
+      const brokerNames = sorted[0].brokers.map(b => b.name);
+
+      const datasets = brokerNames.map((name, i) => ({
+        label: name,
+        data: sorted.map(day => {
+          const b = day.brokers.find(x => x.name === name);
+          return b ? parseDiff(b.diff) : null;
+        }),
+        borderColor: BROKER_COLORS[i % BROKER_COLORS.length],
+        backgroundColor: BROKER_COLORS[i % BROKER_COLORS.length] + "18",
+        borderWidth: 2,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        tension: 0.3,
+        spanGaps: true,
+      }));
+
+      loader.style.display = "none";
+      canvas.style.display = "block";
+
+      const lastDate = fmtDate(sorted[sorted.length - 1].date);
+      document.getElementById("zgb-sub").textContent =
+        `最新：${lastDate} ｜ 單位：仟元 ｜ 差額（買 − 賣），正值=淨買，負值=淨賣`;
+
+      new Chart(canvas, {
+        type: "line",
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { mode: "index", intersect: false },
+          plugins: {
+            legend: { position: "bottom", labels: { font: { size: 12 }, padding: 12, usePointStyle: true } },
+            tooltip: {
+              callbacks: {
+                label: ctx => {
+                  const v = ctx.parsed.y;
+                  if (v == null) return `${ctx.dataset.label}: —`;
+                  const s = v >= 0 ? "+" : "";
+                  return `${ctx.dataset.label}: ${s}${v.toLocaleString()} 仟元`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: { ticks: { font: { size: 12 } }, grid: { color: "#eee" } },
+            y: {
+              ticks: {
+                font: { size: 11 },
+                callback: v => {
+                  const abs = Math.abs(v);
+                  if (abs >= 1000000) return (v / 1000000).toFixed(1) + "M";
+                  if (abs >= 1000) return (v / 1000).toFixed(0) + "K";
+                  return v;
+                }
+              },
+              grid: { color: "#eee" },
+              border: { dash: [3, 3] },
+            }
+          }
+        }
+      });
+
+    } catch (e) {
+      loader.textContent = "❌ ZGB 資料載入失敗：" + e.message;
+    }
+  }
+
   loadAll();
+  loadZGB();
 </script>
 </body>
 </html>
