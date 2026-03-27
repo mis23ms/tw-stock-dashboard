@@ -24,6 +24,7 @@ tw-stock-dashboard/README.md（總覽頁）
 - 選擇權大額交易人（tw-stock-options）
   - https://mis23ms.github.io/tw-stock-options/summary.json
 
+- Add US market tracker section to dashboard (Claude)
 ---
 
 ## summary.json 格式（Dashboard 只認這個）
