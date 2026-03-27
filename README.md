@@ -2,12 +2,12 @@
 tw-stock-dashboard/README.md（總覽頁）
 # tw-stock-dashboard（投資監控中心 / 總覽頁）
 
-本 repo 是「總覽頁 Dashboard」，把三個資料 repo 產出的 `summary.json` 整合顯示在同一頁：
+本 repo 是「總覽頁 Dashboard」，把四個資料 repo 產出的 `summary.json` 整合顯示在同一頁：
 - 今日重點（highlights）
 - 各來源更新時間（updatedAt）
 
 ✅ Dashboard 不跑資料、不需要 GitHub Actions。  
-✅ 你只要打開 / 重新整理 Dashboard，就會重新抓三個來源 summary。
+✅ 你只要打開 / 重新整理 Dashboard，就會重新抓四個來源 summary。
 
 ---
 
@@ -16,13 +16,15 @@ tw-stock-dashboard/README.md（總覽頁）
 
 ---
 
-## 資料來源（Dashboard 會 fetch 這三個 summary.json）
+## 資料來源（Dashboard 會 fetch 這四個 summary.json）
 - 股票外資（tw-stock-06）
   - https://mis23ms.github.io/tw-stock-06/summary.json
 - 期貨大額交易人（tw-stock-futures）
   - https://mis23ms.github.io/tw-stock-futures/summary.json
 - 選擇權大額交易人（tw-stock-options）
   - https://mis23ms.github.io/tw-stock-options/summary.json
+- 🇺🇸 US Market Tracker（us-market-tracker）
+  - https://mis23ms.github.io/us-market-tracker/summary.json
 
 - Add US market tracker section to dashboard (Claude)
 ---
@@ -145,10 +147,10 @@ Actions 綠燈但 Pages 上的 json 沒更新、或 404
 3) 新但 dashboard 不顯示 → dashboard 的 SOURCES / Console / 強制刷新
 
 
-這個專案是一個「總覽頁 Dashboard」，把三個監控專案的重點訊息（`summary.json`）整合在同一頁顯示，讓我一眼看出 4 檔重點股的現貨/期貨/選擇權狀態。
+這個專案是一個「總覽頁 Dashboard」，把四個監控專案的重點訊息（`summary.json`）整合在同一頁顯示，讓我一眼看出台股重點股的現貨/期貨/選擇權狀態，以及美股市場動態。
 
 ✅ Dashboard 只做兩件事：
-1. 抓取三個來源的 `summary.json`
+1. 抓取四個來源的 `summary.json`
 2. 把 `highlights` 逐條列出，並顯示各來源 `updatedAt`
 
 ---
@@ -159,7 +161,7 @@ Actions 綠燈但 Pages 上的 json 沒更新、或 404
 - Repo: https://github.com/mis23ms/tw-stock-dashboard
 - Pages: https://mis23ms.github.io/tw-stock-dashboard/
 
-### 來源資料（3 個監控專案）
+### 來源資料（4 個監控專案）
 - 股票外資（stock-06）
   - Pages: https://mis23ms.github.io/tw-stock-06/
   - Summary: https://mis23ms.github.io/tw-stock-06/summary.json
@@ -171,6 +173,10 @@ Actions 綠燈但 Pages 上的 json 沒更新、或 404
 - 選擇權大額交易人（options）
   - Pages: https://mis23ms.github.io/tw-stock-options/
   - Summary: https://mis23ms.github.io/tw-stock-options/summary.json
+
+- 🇺🇸 US Market Tracker（us-market-tracker）
+  - Pages: https://mis23ms.github.io/us-market-tracker/
+  - Summary: https://mis23ms.github.io/us-market-tracker/summary.json
 
 ---
 
@@ -197,6 +203,7 @@ const SOURCES = [
   { name: "股票外資", url: "https://mis23ms.github.io/tw-stock-06/summary.json", page: "https://mis23ms.github.io/tw-stock-06/" },
   { name: "期貨",     url: "https://mis23ms.github.io/tw-stock-futures/summary.json", page: "https://mis23ms.github.io/tw-stock-futures/" },
   { name: "選擇權",   url: "https://mis23ms.github.io/tw-stock-options/summary.json", page: "https://mis23ms.github.io/tw-stock-options/" },
+  { name: "🇺🇸 US Market", url: "https://mis23ms.github.io/us-market-tracker/summary.json", page: "https://mis23ms.github.io/us-market-tracker/" },
 ];
 
 
@@ -239,6 +246,8 @@ tw-stock-06/summary.json
 tw-stock-futures/summary.json
 
 tw-stock-options/summary.json
+
+us-market-tracker/summary.json
 
 確認 JSON 格式
 
