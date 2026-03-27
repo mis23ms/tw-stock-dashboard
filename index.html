@@ -31,6 +31,18 @@
     .chart-card .chart-sub { font-size:12px; color:#666; margin-bottom:12px; }
     .chart-wrap { position:relative; height:320px; }
     .chart-loader { display:flex; align-items:center; justify-content:center; height:320px; color:#999; font-size:14px; }
+    /* US Market */
+    .us-tbl { width:100%; border-collapse:collapse; font-size:13px; }
+    .us-tbl td { padding: 3px 6px; }
+    .us-tbl tr:nth-child(even) { background: #fafafa; }
+    .us-tbl .sym { font-weight:bold; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; width:5em; }
+    .us-tbl .price { text-align:right; white-space:nowrap; }
+    .us-tbl .chg { text-align:right; font-weight:bold; white-space:nowrap; width:5.5em; }
+    .us-sec-hd td { padding: 8px 6px 2px; font-size:11px; color:#888; font-weight:bold; border-top:1px solid #eee; }
+    .us-cal-item { padding:5px 0; border-bottom:1px solid #f0f0f0; font-size:13px; }
+    .us-cal-item:last-child { border-bottom:none; }
+    .impact-high { color:#c72515; border:1px solid #c72515; border-radius:999px; padding:1px 6px; font-size:11px; margin-left:6px; }
+    .impact-med  { color:#d97706; border:1px solid #d97706; border-radius:999px; padding:1px 6px; font-size:11px; margin-left:6px; }
   </style>
 </head>
 <body>
@@ -41,6 +53,7 @@
     <a class="btn" href="https://mis23ms.github.io/tw-stock-futures/" target="_blank" rel="noopener">期貨大額交易人</a>
     <a class="btn" href="https://mis23ms.github.io/tw-stock-options/" target="_blank" rel="noopener">選擇權大額交易人</a>
     <a class="btn" href="https://mis23ms.github.io/prxdecrease-brokers-buysell-compare/" target="_blank" rel="noopener">跌幅vs外資買賣超</a>
+    <a class="btn" href="https://mis23ms.github.io/us-market-tracker/" target="_blank" rel="noopener">🇺🇸 美股追蹤</a>
   </div>
 
   <div class="grid">
@@ -68,6 +81,24 @@
           <div>• <code id="u3"></code></div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 美股追蹤 -->
+  <div style="margin-top:24px; margin-bottom:4px; display:flex; align-items:center; gap:10px;">
+    <h2 style="margin:0; font-size:18px;">🌐 美股追蹤</h2>
+    <span id="us-updated" class="muted" style="font-size:12px;"></span>
+  </div>
+  <div class="grid">
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:15px;">📊 指數 / 重點股 / ETF</h2>
+      <div id="us-stocks-loader" class="muted">載入中…</div>
+      <table id="us-stocks" class="us-tbl" style="display:none;"></table>
+    </div>
+    <div class="card">
+      <h2 style="margin:0 0 8px; font-size:15px;">📅 財經行事曆（未來 14 天）</h2>
+      <div id="us-cal-loader" class="muted">載入中…</div>
+      <div id="us-cal" style="display:none;"></div>
     </div>
   </div>
 
@@ -295,6 +326,87 @@
 
   loadAll();
   loadZGB();
+
+  // ── 美股追蹤 ──────────────────────────────────────────────
+  const US_ETF_URL = "https://mis23ms.github.io/us-market-tracker/data/etf.json";
+  const US_CAL_URL = "https://mis23ms.github.io/us-market-tracker/data/calendar.json";
+
+  function usFmtChg(pct) {
+    if (pct == null) return "—";
+    return (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%";
+  }
+
+  function usChgClass(pct) {
+    if (pct > 0) return "up";
+    if (pct < 0) return "down";
+    return "";
+  }
+
+  function buildStockRows(items) {
+    return items.map(item => `
+      <tr>
+        <td class="sym">${item.symbol}</td>
+        <td style="color:#555; font-size:12px;">${item.name}</td>
+        <td class="price">${item.close.toLocaleString(undefined, {minimumFractionDigits:2, maximumFractionDigits:2})}</td>
+        <td class="chg ${usChgClass(item.change_pct)}">${usFmtChg(item.change_pct)}</td>
+      </tr>`).join("");
+  }
+
+  async function loadUSMarket() {
+    const [etfR, calR] = await Promise.allSettled([
+      fetch(US_ETF_URL + "?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+      fetch(US_CAL_URL + "?t=" + Date.now(), { cache: "no-store" }).then(r => { if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); }),
+    ]);
+
+    // 指數 / 重點股 / ETF
+    const stocksLoader = document.getElementById("us-stocks-loader");
+    const stocksEl = document.getElementById("us-stocks");
+    if (etfR.status === "fulfilled") {
+      const d = etfR.value;
+      const watchlist = d.watchlist || [];
+      const etfs = d.etfs || [];
+      let html = "";
+      if (watchlist.length) {
+        html += `<tr class="us-sec-hd"><td colspan="4">指數 / 重點股</td></tr>` + buildStockRows(watchlist);
+      }
+      if (etfs.length) {
+        html += `<tr class="us-sec-hd"><td colspan="4">ETF</td></tr>` + buildStockRows(etfs);
+      }
+      stocksEl.innerHTML = html;
+      stocksLoader.style.display = "none";
+      stocksEl.style.display = "table";
+      if (d.updated_at) {
+        document.getElementById("us-updated").textContent =
+          "更新：" + d.updated_at.replace("T", " ").replace("Z", " UTC");
+      }
+    } else {
+      stocksLoader.textContent = "❌ 美股資料載入失敗：" + (etfR.reason?.message || "未知錯誤");
+    }
+
+    // 財經行事曆
+    const calLoader = document.getElementById("us-cal-loader");
+    const calEl = document.getElementById("us-cal");
+    if (calR.status === "fulfilled") {
+      const events = calR.value.events || [];
+      if (!events.length) {
+        calEl.innerHTML = '<div class="muted">未來 14 天無重要事件</div>';
+      } else {
+        calEl.innerHTML = events.map(ev => `
+          <div class="us-cal-item">
+            <span style="color:#555; margin-right:8px;">${ev.date}</span>
+            <span style="font-weight:bold;">${ev.event}</span>
+            <span class="${ev.impact === "High" ? "impact-high" : "impact-med"}">${ev.impact}</span>
+            <span style="color:#999; font-size:12px; margin-left:4px;">${ev.time} ET</span>
+          </div>`).join("");
+      }
+      calLoader.style.display = "none";
+      calEl.style.display = "block";
+    } else {
+      calLoader.textContent = "❌ 行事曆載入失敗：" + (calR.reason?.message || "未知錯誤");
+    }
+  }
+
+  loadUSMarket();
 </script>
 </body>
 </html>
